@@ -205,7 +205,8 @@
 <span class="material-symbols-outlined text-on-surface-variant opacity-40">more_vert</span>
 </div>
 <!-- Chat Messages -->
-<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4">
+
 <div class="max-w-[85%] bg-surface-container-high rounded-xl p-3 ml-0 border border-white/5">
 <p class="text-xs font-body text-on-surface leading-relaxed">
                                 Hello. I am your Civic Assistant. How can I help you navigate the 2024 election timeline today?
@@ -228,12 +229,21 @@
 <!-- Input Area -->
 <div class="p-4 bg-slate-950/40 border-t border-white/5">
 <div class="relative">
-<input class="w-full bg-surface-container-highest border-none rounded-xl py-3 pl-4 pr-12 text-sm focus:ring-1 focus:ring-primary/50 placeholder:text-on-surface-variant/40 transition-all" placeholder="Ask about delegates, dates, or voting..." type="text"/>
-<button class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
+<input id="chat-input" class="w-full bg-surface-container-highest border-none rounded-xl py-3 pl-4 pr-12 text-sm focus:ring-1 focus:ring-primary/50 placeholder:text-on-surface-variant/40 transition-all" placeholder="Ask about delegates, dates, or voting..." type="text"/>
+<button id="send-btn" class="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg bg-primary text-on-primary flex items-center justify-center hover:scale-105 active:scale-95 transition-transform">
 <span class="material-symbols-outlined text-sm">send</span>
 </button>
 </div>
 </div>
+</div>
+<!-- Map Container -->
+<div class="mt-4 liquid-glass backdrop-blur-md rounded-xl p-4 ghost-border flex flex-col">
+<h4 class="text-xs font-bold text-on-surface uppercase tracking-wider mb-2">Polling Locator</h4>
+<div class="flex gap-2 mb-2">
+<input id="zip-input" class="flex-1 bg-surface-container-highest border-none rounded-lg py-2 pl-3 text-sm focus:ring-1 focus:ring-primary/50 placeholder:text-on-surface-variant/40" placeholder="Enter 5-digit ZIP..." type="text"/>
+<button id="locate-btn" class="px-4 py-2 bg-primary/20 text-primary font-bold rounded-lg hover:bg-primary/30 transition-colors text-xs uppercase tracking-wider">Locate</button>
+</div>
+<div id="map-container" class="w-full h-48 rounded-lg bg-surface-container-low overflow-hidden"></div>
 </div>
 <!-- Auxiliary Data Card -->
 <div class="mt-6 liquid-glass rounded-xl p-4 ghost-border flex items-center gap-4">
@@ -267,4 +277,234 @@
 <span class="font-['Inter'] text-[10px] font-semibold tracking-wider uppercase mt-1">Profile</span>
 </div>
 </nav>
+<script>
+
+    // Format Time
+
+    function formatTime() {
+
+        const now = new Date();
+
+        return now.toLocaleTimeString([], {hour: "2-digit", minute:"2-digit"});
+
+    }
+
+
+
+    // --- Chat Logic ---
+
+    const chatInput = document.getElementById("chat-input");
+
+    const sendBtn = document.getElementById("send-btn");
+
+    const chatMessages = document.getElementById("chat-messages");
+
+
+
+    function escapeHtml(unsafe) {
+    return unsafe
+         .replace(/&/g, "&amp;")
+         .replace(/</g, "&lt;")
+         .replace(/>/g, "&gt;")
+         .replace(/"/g, "&quot;")
+         .replace(/'/g, "&#039;");
+ }
+
+function appendMessage(text, isUser) {
+        text = escapeHtml(text);
+
+        const msgDiv = document.createElement("div");
+
+        const timeStr = formatTime();
+
+        if(isUser) {
+
+            msgDiv.className = "max-w-[85%] bg-primary/10 rounded-xl p-3 ml-auto border border-primary/20";
+
+            msgDiv.innerHTML = `<p class="text-xs font-body text-on-primary-container leading-relaxed">${text}</p><span class="text-[9px] text-primary/40 mt-1 block text-right">${timeStr}</span>`;
+
+        } else {
+
+            msgDiv.className = "max-w-[85%] bg-surface-container-high rounded-xl p-3 ml-0 border border-white/5";
+
+            msgDiv.innerHTML = `<p class="text-xs font-body text-on-surface leading-relaxed">${text}</p><span class="text-[9px] text-on-surface-variant opacity-40 mt-1 block">${timeStr}</span>`;
+
+        }
+
+        chatMessages.appendChild(msgDiv);
+
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    }
+
+
+
+    async function sendMessage() {
+
+        const text = chatInput.value.trim();
+
+        if(!text) return;
+
+        chatInput.value = "";
+
+        appendMessage(text, true);
+
+
+
+        try {
+
+            const response = await fetch("/api/educate", {
+
+                method: "POST",
+
+                headers: {"Content-Type": "application/json"},
+
+                body: JSON.stringify({query: text})
+
+            });
+
+            const data = await response.json();
+
+            appendMessage(data.message, false);
+
+        } catch(e) {
+
+            appendMessage("Error communicating with AI.", false);
+
+        }
+
+    }
+
+
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    chatInput.addEventListener("keypress", (e) => { if(e.key === "Enter") sendMessage(); });
+
+
+
+    // --- Maps Logic ---
+
+    let map;
+
+    let marker;
+
+    async function initMap(lat = 38.8977, lng = -77.0365) {
+
+        const position = { lat: lat, lng: lng };
+
+        if (!map) {
+
+            const { Map } = await google.maps.importLibrary("maps");
+
+            const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+
+            map = new Map(document.getElementById("map-container"), {
+
+                zoom: 14,
+
+                center: position,
+
+                mapId: "DEMO_MAP_ID",
+
+                disableDefaultUI: true,
+
+                backgroundColor: "#0b1326" // Matches background
+
+            });
+
+            marker = new AdvancedMarkerElement({
+
+                map: map,
+
+                position: position,
+
+                title: "Polling Place"
+
+            });
+
+        } else {
+
+            map.setCenter(position);
+
+            marker.position = position;
+
+        }
+
+    }
+
+
+
+    document.getElementById("locate-btn").addEventListener("click", async () => {
+
+        const zip = document.getElementById("zip-input").value.trim();
+
+        if(!/^\d{5}$/.test(zip)) {
+
+            alert("Please enter a valid 5-digit ZIP code.");
+
+            return;
+
+        }
+
+        try {
+
+            const response = await fetch("/api/locate", {
+
+                method: "POST",
+
+                headers: {"Content-Type": "application/json"},
+
+                body: JSON.stringify({zip_code: zip})
+
+            });
+
+            const data = await response.json();
+
+            if(data.lat && data.lng && window.google) {
+
+                initMap(data.lat, data.lng);
+
+            }
+
+        } catch(e) {
+
+            console.error("Locate error", e);
+
+        }
+
+    });
+
+
+
+    // Load config and Google Maps script
+
+    fetch("/api/config")
+
+        .then(r => r.json())
+
+        .then(data => {
+
+            if(data.maps_api_key) {
+
+                const script = document.createElement("script");
+
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${data.maps_api_key}&loading=async&callback=initMap`;
+
+                script.async = true;
+
+                script.defer = true;
+
+                document.head.appendChild(script);
+
+            } else {
+
+                document.getElementById("map-container").innerHTML = "<div class=\"w-full h-full flex items-center justify-center text-xs text-on-surface-variant opacity-60\">Maps API Key not configured</div>";
+
+            }
+
+        });
+
+</script>
+
 </body></html>
