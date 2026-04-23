@@ -301,35 +301,30 @@
 
 
 
-    function escapeHtml(unsafe) {
-    return unsafe
-         .replace(/&/g, "&amp;")
-         .replace(/</g, "&lt;")
-         .replace(/>/g, "&gt;")
-         .replace(/"/g, "&quot;")
-         .replace(/'/g, "&#039;");
- }
-
 function appendMessage(text, isUser) {
-        text = escapeHtml(text);
-
         const msgDiv = document.createElement("div");
-
         const timeStr = formatTime();
 
+        const p = document.createElement("p");
+        p.className = "text-xs font-body leading-relaxed";
+        p.textContent = text;
+
+        const span = document.createElement("span");
+        span.className = "text-[9px] mt-1 block";
+        span.textContent = timeStr;
+
         if(isUser) {
-
             msgDiv.className = "max-w-[85%] bg-primary/10 rounded-xl p-3 ml-auto border border-primary/20";
-
-            msgDiv.innerHTML = `<p class="text-xs font-body text-on-primary-container leading-relaxed">${text}</p><span class="text-[9px] text-primary/40 mt-1 block text-right">${timeStr}</span>`;
-
+            p.classList.add("text-on-primary-container");
+            span.classList.add("text-primary/40", "text-right");
         } else {
-
             msgDiv.className = "max-w-[85%] bg-surface-container-high rounded-xl p-3 ml-0 border border-white/5";
-
-            msgDiv.innerHTML = `<p class="text-xs font-body text-on-surface leading-relaxed">${text}</p><span class="text-[9px] text-on-surface-variant opacity-40 mt-1 block">${timeStr}</span>`;
-
+            p.classList.add("text-on-surface");
+            span.classList.add("text-on-surface-variant", "opacity-40");
         }
+
+        msgDiv.appendChild(p);
+        msgDiv.appendChild(span);
 
         chatMessages.appendChild(msgDiv);
 
@@ -498,9 +493,12 @@ function appendMessage(text, isUser) {
                 document.head.appendChild(script);
 
             } else {
-
-                document.getElementById("map-container").innerHTML = "<div class=\"w-full h-full flex items-center justify-center text-xs text-on-surface-variant opacity-60\">Maps API Key not configured</div>";
-
+                const mapContainer = document.getElementById("map-container");
+                mapContainer.textContent = "";
+                const errorDiv = document.createElement("div");
+                errorDiv.className = "w-full h-full flex items-center justify-center text-xs text-on-surface-variant opacity-60";
+                errorDiv.textContent = "Maps API Key not configured";
+                mapContainer.appendChild(errorDiv);
             }
 
         });
