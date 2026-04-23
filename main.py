@@ -24,6 +24,11 @@ if GEMINI_API_KEY:
 
 SYSTEM_PROMPT = "You are a strictly non-partisan election educator. Provide neutral, factual, and unbiased information about the election process. Do not express political opinions, endorse candidates, or provide biased analysis."
 
+# Cache the GenerativeModel instance
+model = None
+if GEMINI_API_KEY:
+    model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
+
 @app.get("/")
 async def root():
     return FileResponse("index.html")
@@ -46,7 +51,6 @@ async def educate(query: ChatbotQuery):
         }
 
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_PROMPT)
         response = await model.generate_content_async(sanitized_query)
         return {"message": response.text, "sanitized_query": sanitized_query}
     except Exception as e:
