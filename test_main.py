@@ -1,10 +1,34 @@
 from fastapi.testclient import TestClient
 from main import app
+from schemas import ChatbotQuery, PollingLocator
+from pydantic import ValidationError
+import pytest
 
 client = TestClient(app)
 
+# Schema Validation Tests
+def test_chatbot_query_schema_valid():
+    query = ChatbotQuery(query="Valid query")
+    assert query.query == "Valid query"
+
+def test_chatbot_query_schema_invalid():
+    with pytest.raises(ValidationError):
+        ChatbotQuery(query="") # Empty query violates min_length=1
+
+def test_polling_locator_schema_valid():
+    locator = PollingLocator(zip_code="12345")
+    assert locator.zip_code == "12345"
+
+def test_polling_locator_schema_invalid_length():
+    with pytest.raises(ValidationError):
+        PollingLocator(zip_code="1234") # Not 5 digits
+
+def test_polling_locator_schema_invalid_chars():
+    with pytest.raises(ValidationError):
+        PollingLocator(zip_code="12abc") # Contains letters
+
+# Endpoint Tests
 def test_educate_endpoint_mocked():
-    # When no API key is provided, it returns the mock fallback response
     response = client.post("/api/educate", json={"query": "How do I vote?"})
     assert response.status_code == 200
     json_resp = response.json()
