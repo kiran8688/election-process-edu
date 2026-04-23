@@ -1,4 +1,5 @@
 import os
+import html
 import google.generativeai as genai
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
@@ -34,8 +35,8 @@ async def config():
 @app.post("/api/educate")
 async def educate(query: ChatbotQuery):
     sanitized_query = query.query.strip()
-    # Basic input sanitization as per Security Protocol
-    sanitized_query = sanitized_query.replace("<", "&lt;").replace(">", "&gt;")
+    # Robust input sanitization as per Security Protocol
+    sanitized_query = html.escape(sanitized_query)
 
     if not GEMINI_API_KEY:
         # Fallback for testing without key
